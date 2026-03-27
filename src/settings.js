@@ -2,8 +2,8 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { SpriteAnimator, getSpriteRenderOptions } from './sprite.js';
-import { saveConfigField } from './brain.js';
-import { CHARACTERS } from './characters.js';
+import { saveConfigField, importCustomSprite, deleteCustomSprite, readSpecPrompt, pickAndReadPng, loadCustomSprites } from './brain.js';
+import { CHARACTERS, getSpriteSrc, registerCharacter, removeCharacter, isCustomCharacter } from './characters.js';
 
 var SETTINGS_SIZE = { width: 560, height: 580 };
 
@@ -15,23 +15,166 @@ var PREVIEW_SEQUENCE = [
   { state: 'playful', duration: 1500 },
 ];
 
-function buildSpritePicker(container) {
+function buildSpritePicker(container, pet) {
+  container.innerHTML = '';
   Object.keys(CHARACTERS).forEach(function(key) {
     if (key === '_default') return;
     var char = CHARACTERS[key];
     var btn = document.createElement('button');
     btn.className = 'sprite-option';
+    if (key === pet.currentSprite) btn.classList.add('active');
     btn.dataset.sprite = key;
+
+    // Wrapper for canvas + delete button
+    var canvasWrap = document.createElement('div');
+    canvasWrap.className = 'sprite-preview-wrap';
+
     var cvs = document.createElement('canvas');
     cvs.className = 'sprite-preview';
-    cvs.dataset.src = '/sprites/' + key + '.png';
+    cvs.dataset.src = getSpriteSrc(key);
     cvs.width = 128;
     cvs.height = 128;
+    canvasWrap.appendChild(cvs);
+
+    // Delete button for custom characters
+    if (isCustomCharacter(key)) {
+      var del = document.createElement('span');
+      del.className = 'sprite-delete';
+      del.textContent = '\u00d7';
+      del.title = 'Remove';
+      del.dataset.spriteKey = key;
+      canvasWrap.appendChild(del);
+    }
+
     var span = document.createElement('span');
     span.textContent = char.displayName || key;
-    btn.appendChild(cvs);
+    btn.appendChild(canvasWrap);
     btn.appendChild(span);
     container.appendChild(btn);
+  });
+
+  // "Add custom" button
+  var addBtn = document.createElement('button');
+  addBtn.className = 'sprite-option sprite-add';
+  addBtn.id = 'sprite-add-btn';
+  var addIcon = document.createElement('div');
+  addIcon.className = 'sprite-add-icon';
+  addIcon.textContent = '+';
+  var addLabel = document.createElement('span');
+  addLabel.textContent = 'Import';
+  addBtn.appendChild(addIcon);
+  addBtn.appendChild(addLabel);
+  container.appendChild(addBtn);
+}
+
+function showImportGuide(pet, onDone) {
+  var overlay = document.getElementById('import-guide-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'import-guide-overlay';
+    overlay.innerHTML =
+      '<div class="import-guide-panel">' +
+        '<div class="import-guide-header">' +
+          '<h3>Import Custom Character</h3>' +
+          '<button class="import-guide-close" id="import-guide-close">&times;</button>' +
+        '</div>' +
+        '<div class="import-guide-body">' +
+          '<div class="import-guide-prompt">' +
+            '<div class="prompt-label">Copy this prompt for AI image generation (Gemini, ChatGPT, Midjourney, etc.):</div>' +
+            '<div class="prompt-text" id="import-prompt-text">Loading...</div>' +
+            '<button class="prompt-copy" id="import-copy-prompt">Copy</button>' +
+          '</div>' +
+          '<div class="import-guide-actions">' +
+            '<button class="import-btn" id="import-select-file">Choose PNG file...</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+  }
+
+  overlay.classList.add('show');
+
+  // Load prompt from SPRITE-SPEC.md
+  var promptEl = document.getElementById('import-prompt-text');
+  var cachedPrompt = '';
+  readSpecPrompt().then(function(prompt) {
+    cachedPrompt = prompt;
+    promptEl.textContent = prompt || '(SPRITE-SPEC.md not found)';
+  });
+
+  var closeBtn = document.getElementById('import-guide-close');
+  var selectBtn = document.getElementById('import-select-file');
+
+  function close() {
+    overlay.classList.remove('show');
+    closeBtn.removeEventListener('click', close);
+    overlay.removeEventListener('click', onOverlayClick);
+  }
+
+  function onOverlayClick(e) {
+    if (e.target === overlay) close();
+  }
+
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', onOverlayClick);
+
+  var copyBtn = document.getElementById('import-copy-prompt');
+  copyBtn.onclick = function() {
+    if (!cachedPrompt) return;
+    navigator.clipboard.writeText(cachedPrompt).then(function() {
+      copyBtn.textContent = 'Copied!';
+      setTimeout(function() { copyBtn.textContent = 'Copy'; }, 1500);
+    });
+  };
+
+  selectBtn.onclick = function() {
+    var errEl = overlay.querySelector('.import-error');
+    if (!errEl) {
+      errEl = document.createElement('div');
+      errEl.className = 'import-error';
+      overlay.querySelector('.import-guide-actions').appendChild(errEl);
+    }
+    errEl.textContent = '';
+
+    pickAndReadPng().then(function(result) {
+      if (!result) return;
+      errEl.textContent = 'Processing...';
+      selectBtn.style.pointerEvents = 'none';
+      selectBtn.style.opacity = '0.5';
+      return doImport(result.fileName, result.filePath, pet, onDone).then(function() {
+        close();
+      });
+    }).catch(function(err) {
+      console.error('Import failed:', err);
+      errEl.textContent = 'Processing failed — is it a valid sprite sheet?';
+      selectBtn.style.pointerEvents = '';
+      selectBtn.style.opacity = '';
+    });
+  };
+}
+
+function doImport(fileName, srcPath, pet, onDone) {
+  // Derive key from filename
+  var key = fileName.replace(/\.png$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  if (!key) key = 'custom_' + Date.now();
+
+  // Avoid collision with built-in characters
+  if (CHARACTERS[key] && !isCustomCharacter(key)) {
+    key = key + '_custom';
+  }
+
+  var displayName = key.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+
+  // Process sprite sheet (background removal, de-spill, resize to 1024×1152)
+  return importCustomSprite(key + '.png', srcPath).then(function() {
+    // Re-read the processed file for the data URL
+    return loadCustomSprites();
+  }).then(function(sprites) {
+    var match = sprites.find(function(s) { return s.key === key; });
+    if (match) {
+      registerCharacter(key, displayName, match.dataUrl);
+    }
+    if (onDone) onDone();
   });
 }
 
@@ -42,9 +185,10 @@ export function initSettings(pet) {
   var normalPos = null;
   var previewAnimId = null;
   var previewAnimators = [];
+  var spriteContainer = document.getElementById('sprite-options');
 
   // Build sprite picker from CHARACTERS data
-  buildSpritePicker(document.getElementById('sprite-options'));
+  buildSpritePicker(spriteContainer, pet);
 
   // --- Right-click context menu ---
   document.addEventListener('contextmenu', function(e) {
@@ -83,13 +227,22 @@ export function initSettings(pet) {
   });
 
   // --- Settings panel ---
+  function refreshPicker() {
+    stopPreviewAnimations();
+    buildSpritePicker(spriteContainer, pet);
+    if (settingsOverlay.classList.contains('show')) {
+      startPreviewAnimations();
+    }
+  }
+
+  // Expose for main.js to call after loading custom characters
+  pet._refreshSpritePicker = refreshPicker;
+
   function openSettings() {
     document.getElementById('setting-pet-name').value = pet.petName;
     document.getElementById('setting-owner-name').value = pet.ownerName;
 
-    settingsOverlay.querySelectorAll('.sprite-option').forEach(function(btn) {
-      btn.classList.toggle('active', btn.dataset.sprite === pet.currentSprite);
-    });
+    refreshPicker();
 
     // Resize window to fit settings panel
     pet.appWindow.outerPosition().then(function(pos) {
@@ -205,34 +358,69 @@ export function initSettings(pet) {
     if (e.target === settingsOverlay) closeSettings();
   });
 
-  // Sprite selection in settings
-  settingsOverlay.querySelectorAll('.sprite-option').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var spriteName = btn.dataset.sprite;
-      if (spriteName !== pet.currentSprite) {
-        pet.currentSprite = spriteName;
-        pet.sprite.image.src = '/sprites/' + spriteName + '.png';
-        pet.sprite.edgeClear = getSpriteRenderOptions(spriteName).edgeClear || 0;
-
-        // Only suggest default name if user hasn't customized it
-        var charInfo = CHARACTERS[spriteName] || CHARACTERS._default;
-        var currentInput = document.getElementById('setting-pet-name').value.trim();
-        var oldCharInfo = CHARACTERS[pet.currentSprite] || CHARACTERS._default;
-        var nameIsDefault = !currentInput || currentInput === oldCharInfo.defaultName;
-
-        saveConfigField('sprite', spriteName);
-
-        if (nameIsDefault) {
-          pet.petName = charInfo.defaultName;
-          document.getElementById('setting-pet-name').value = charInfo.defaultName;
+  // Event delegation for sprite selection and actions
+  spriteContainer.addEventListener('click', function(e) {
+    // Handle delete button
+    var del = e.target.closest('.sprite-delete');
+    if (del) {
+      e.stopPropagation();
+      var delKey = del.dataset.spriteKey;
+      if (delKey && confirm('Remove "' + (CHARACTERS[delKey].displayName || delKey) + '"?')) {
+        // If currently selected, switch to tabby_cat
+        if (pet.currentSprite === delKey) {
+          pet.currentSprite = 'tabby_cat';
+          pet.sprite.image.src = getSpriteSrc('tabby_cat');
+          pet.sprite.edgeClear = getSpriteRenderOptions('tabby_cat').edgeClear || 0;
+          saveConfigField('sprite', 'tabby_cat');
+          var defaultChar = CHARACTERS.tabby_cat;
+          pet.petName = defaultChar.defaultName;
+          document.getElementById('setting-pet-name').value = defaultChar.defaultName;
           document.getElementById('chat-input').placeholder = 'Say something to ' + pet.petName + '...';
-          saveConfigField('pet_name', charInfo.defaultName);
-          pet.showBubble('call me ' + charInfo.defaultName + '!', 2000, true);
+          saveConfigField('pet_name', defaultChar.defaultName);
         }
+        deleteCustomSprite(delKey).then(function() {
+          removeCharacter(delKey);
+          refreshPicker();
+        });
       }
-      settingsOverlay.querySelectorAll('.sprite-option').forEach(function(b) {
-        b.classList.toggle('active', b.dataset.sprite === pet.currentSprite);
-      });
+      return;
+    }
+
+    // Handle add button
+    var addBtn = e.target.closest('.sprite-add');
+    if (addBtn) {
+      showImportGuide(pet, refreshPicker);
+      return;
+    }
+
+    // Handle sprite selection
+    var btn = e.target.closest('.sprite-option');
+    if (!btn || btn.classList.contains('sprite-add')) return;
+
+    var spriteName = btn.dataset.sprite;
+    if (spriteName && spriteName !== pet.currentSprite) {
+      // Only suggest default name if user hasn't customized it
+      var oldCharInfo = CHARACTERS[pet.currentSprite] || CHARACTERS._default;
+      var currentInput = document.getElementById('setting-pet-name').value.trim();
+      var nameIsDefault = !currentInput || currentInput === oldCharInfo.defaultName;
+
+      pet.currentSprite = spriteName;
+      pet.sprite.image.src = getSpriteSrc(spriteName);
+      pet.sprite.edgeClear = getSpriteRenderOptions(spriteName).edgeClear || 0;
+
+      saveConfigField('sprite', spriteName);
+
+      var charInfo = CHARACTERS[spriteName] || CHARACTERS._default;
+      if (nameIsDefault) {
+        pet.petName = charInfo.defaultName;
+        document.getElementById('setting-pet-name').value = charInfo.defaultName;
+        document.getElementById('chat-input').placeholder = 'Say something to ' + pet.petName + '...';
+        saveConfigField('pet_name', charInfo.defaultName);
+        pet.showBubble('call me ' + charInfo.defaultName + '!', 2000, true);
+      }
+    }
+    spriteContainer.querySelectorAll('.sprite-option').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.sprite === pet.currentSprite);
     });
   });
 

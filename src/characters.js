@@ -61,5 +61,47 @@ export var VOICE = {
   }
 };
 
+// Custom sprite sources: key → data URL
+var customSpriteSources = {};
+
+// Register a custom character (from .pet-data/sprites/)
+// options: { defaultName, voiceData } — both optional
+export function registerCharacter(key, displayName, spriteSrc, options) {
+  var opts = options || {};
+  if (!CHARACTERS[key]) {
+    CHARACTERS[key] = {
+      defaultName: opts.defaultName || displayName,
+      displayName: displayName,
+      custom: true,
+    };
+  }
+  if (opts.voice) {
+    VOICE[key] = opts.voice;
+  } else if (!VOICE[key]) {
+    VOICE[key] = Object.assign({}, VOICE._default);
+  }
+  customSpriteSources[key] = spriteSrc;
+}
+
+// Remove a custom character
+export function removeCharacter(key) {
+  if (CHARACTERS[key] && CHARACTERS[key].custom) {
+    delete CHARACTERS[key];
+    delete VOICE[key];
+    delete customSpriteSources[key];
+  }
+}
+
+// Get the image source URL for a character
+export function getSpriteSrc(key) {
+  if (customSpriteSources[key]) return customSpriteSources[key];
+  return '/sprites/' + key + '.png';
+}
+
+// Check if a character is custom (user-imported)
+export function isCustomCharacter(key) {
+  return !!(CHARACTERS[key] && CHARACTERS[key].custom);
+}
+
 // pet.currentSprite must be set before calling
 export function voice(pet) { return VOICE[pet.currentSprite] || VOICE._default; }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CHARACTERS, VOICE, voice } from '../characters.js';
+import { CHARACTERS, VOICE, voice, registerCharacter, removeCharacter, getSpriteSrc, isCustomCharacter } from '../characters.js';
 
 describe('CHARACTERS', () => {
   var characterKeys = Object.keys(CHARACTERS).filter(k => k !== '_default');
@@ -42,5 +42,42 @@ describe('CHARACTERS', () => {
     characterKeys.forEach(key => {
       expect(key).toMatch(/^[a-z][a-z0-9_]*$/, key + ' has invalid sprite key format');
     });
+  });
+});
+
+describe('custom characters', () => {
+  var testKey = '__test_custom_char';
+
+  it('registerCharacter adds a custom character', () => {
+    registerCharacter(testKey, 'Test Char', 'data:image/png;base64,abc', { defaultName: 'Testy' });
+    expect(CHARACTERS[testKey]).toBeDefined();
+    expect(CHARACTERS[testKey].displayName).toBe('Test Char');
+    expect(CHARACTERS[testKey].defaultName).toBe('Testy');
+    expect(CHARACTERS[testKey].custom).toBe(true);
+    expect(VOICE[testKey]).toBeDefined();
+  });
+
+  it('getSpriteSrc returns custom data URL for custom character', () => {
+    expect(getSpriteSrc(testKey)).toBe('data:image/png;base64,abc');
+  });
+
+  it('getSpriteSrc returns /sprites/ path for built-in character', () => {
+    expect(getSpriteSrc('tabby_cat')).toBe('/sprites/tabby_cat.png');
+  });
+
+  it('isCustomCharacter returns true for custom, false for built-in', () => {
+    expect(isCustomCharacter(testKey)).toBe(true);
+    expect(isCustomCharacter('tabby_cat')).toBe(false);
+  });
+
+  it('removeCharacter deletes a custom character', () => {
+    removeCharacter(testKey);
+    expect(CHARACTERS[testKey]).toBeUndefined();
+    expect(VOICE[testKey]).toBeUndefined();
+  });
+
+  it('removeCharacter does not delete built-in characters', () => {
+    removeCharacter('tabby_cat');
+    expect(CHARACTERS.tabby_cat).toBeDefined();
   });
 });

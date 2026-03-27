@@ -27,6 +27,9 @@
 Copy and customize for AI image generation (Gemini, Midjourney, etc.):
 
 ```
+CHARACTER: [describe your character, or attach a few photos of your pet and say "based on this pet"]
+STYLE: [e.g. "cute, photo-realistic" or "pixel art" or "chibi anime"]
+
 Generate a sprite sheet for an animated desktop pet character.
 
 LAYOUT:
@@ -57,9 +60,6 @@ ROW DEFINITIONS (top to bottom):
 - Row 7: Happy — bright expression, joyful body language, small hearts or sparkles
 - Row 8: Sad — dejected, looking down, low energy, lonely
 - Row 9: Being Held — picked up or carried, limbs dangling, mildly annoyed
-
-CHARACTER: [describe your character]
-STYLE: [e.g. "cute, photo-realistic" or "pixel art" or "chibi anime"]
 ```
 
 ## Processing
@@ -74,25 +74,25 @@ python3 scripts/process-spritesheet-v4.py input.png \
   --cols 8 --rows 9 --target 128
 ```
 
-## Register Your Character
+## Import Your Character
 
-Add an entry to `src/characters.js`:
+In the app, open **Settings → Character → Import**, then choose your processed PNG file. The character will appear in the picker automatically.
 
-```js
-// In CHARACTERS:
-your_character: { defaultName: 'Name', displayName: 'Your Character' },
+Custom characters are stored in `.pet-data/sprites/`. You can optionally add a JSON file alongside the PNG (e.g. `my_char.json`) to customize the display name and voice lines:
 
-// In VOICE:
-your_character: {
-  greet: '👋',
-  acks: ['~♪', '😊', 'hehe', 'hey!', '💛'],
-  petHold: 'hehe~ 😊',
-  petLines: ['hehe~', 'more...', 'nice~ 😊', "don't stop~"],
-  petFallback: 'hehe~ 😊',
-  tapLines: ['hm?', '!', 'hey?', '~'],
-  tapFallback: 'hey?',
-  chatFallback: 'hmm?',
-},
+```json
+{
+  "displayName": "My Character",
+  "defaultName": "Buddy",
+  "voice": {
+    "greet": "👋",
+    "acks": ["~♪", "😊", "hehe", "hey!", "💛"],
+    "petHold": "hehe~ 😊",
+    "petLines": ["hehe~", "more...", "nice~ 😊", "don't stop~"],
+    "petFallback": "hehe~ 😊",
+    "tapLines": ["hm?", "!", "hey?", "~"],
+    "tapFallback": "hey?",
+    "chatFallback": "hmm?"
+  }
+}
 ```
-
-That's it — the character picker UI is generated automatically from this file.

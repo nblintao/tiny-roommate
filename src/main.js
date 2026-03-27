@@ -2,8 +2,8 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { SpriteAnimator, getSpriteRenderOptions } from './sprite.js';
 import { trackActivity } from './signals.js';
-import { loadConfig } from './brain.js';
-import { voice } from './characters.js';
+import { loadConfig, loadCustomSprites } from './brain.js';
+import { voice, registerCharacter, getSpriteSrc, CHARACTERS } from './characters.js';
 import { initHearts } from './hearts.js';
 import { initBubble } from './bubble-manager.js';
 import { initBehavior } from './behavior.js';
@@ -61,15 +61,33 @@ function animationLoop(timestamp) {
 }
 requestAnimationFrame(animationLoop);
 
-// Load config and start
+// Load config, custom characters, and start
 loadConfig().then(function(cfg) {
   pet.petName = cfg.pet.name;
   pet.ownerName = cfg.owner.name;
-  if (cfg.sprite && cfg.sprite !== pet.currentSprite) {
-    pet.currentSprite = cfg.sprite;
-    pet.sprite.image.src = '/sprites/' + pet.currentSprite + '.png';
-    pet.sprite.edgeClear = getSpriteRenderOptions(pet.currentSprite).edgeClear || 0;
-  }
+
+  // Load custom sprites, then apply saved character
+  return loadCustomSprites().then(function(customSprites) {
+    customSprites.forEach(function(s) {
+      registerCharacter(s.key, s.displayName, s.dataUrl, {
+        defaultName: s.defaultName,
+        voice: s.voice,
+      });
+    });
+
+    if (cfg.sprite && cfg.sprite !== pet.currentSprite) {
+      // Only apply if the character actually exists (built-in or custom)
+      if (CHARACTERS[cfg.sprite]) {
+        pet.currentSprite = cfg.sprite;
+        pet.sprite.image.src = getSpriteSrc(pet.currentSprite);
+        pet.sprite.edgeClear = getSpriteRenderOptions(pet.currentSprite).edgeClear || 0;
+      }
+    }
+
+    // Refresh settings picker with custom characters
+    if (pet._refreshSpritePicker) pet._refreshSpritePicker();
+  });
+}).then(function() {
   document.getElementById('chat-input').placeholder = 'Say something to ' + pet.petName + '...';
   hearts.updateTogether();
 });

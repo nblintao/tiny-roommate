@@ -51,6 +51,105 @@ export async function ensurePetDataPath() {
   return PET_DATA_PATH;
 }
 
+// --- Custom sprite management ---
+
+export async function loadCustomSprites() {
+  var petDataPath = await ensurePetDataPath();
+  var spritesDir = petDataPath + '/sprites';
+  // Ensure sprites directory exists
+  await runShell('mkdir -p ' + shellQuote(spritesDir));
+  // List PNG files
+  var result = await runShell('ls ' + shellQuote(spritesDir) + '/*.png 2>/dev/null || true');
+  var files = (result.stdout || '').trim().split('\n').filter(Boolean);
+  var sprites = [];
+  for (var i = 0; i < files.length; i++) {
+    var filePath = files[i].trim();
+    if (!filePath) continue;
+    var key = filePath.split('/').pop().replace(/\.png$/, '');
+    // Read as base64 for data URL
+    var b64Result = await runShell('base64 < ' + shellQuote(filePath));
+    var b64 = (b64Result.stdout || '').replace(/\s/g, '');
+    if (!b64) continue;
+
+    var entry = {
+      key: key,
+      displayName: key.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); }),
+      dataUrl: 'data:image/png;base64,' + b64,
+      voice: null,
+    };
+
+    // Try reading companion JSON metadata
+    var jsonPath = spritesDir + '/' + key + '.json';
+    try {
+      var jsonResult = await runShell('cat ' + shellQuote(jsonPath) + ' 2>/dev/null');
+      var jsonText = (jsonResult.stdout || '').trim();
+      if (jsonText) {
+        var meta = JSON.parse(jsonText);
+        if (meta.displayName) entry.displayName = meta.displayName;
+        if (meta.defaultName) entry.defaultName = meta.defaultName;
+        if (meta.voice) entry.voice = meta.voice;
+      }
+    } catch (e) {
+      // No JSON file or invalid JSON — that's fine
+    }
+
+    sprites.push(entry);
+  }
+  return sprites;
+}
+
+export async function importCustomSprite(fileName, srcPath) {
+  var { projectRoot } = await resolvePetDataPaths();
+  var petDataPath = await ensurePetDataPath();
+  var spritesDir = petDataPath + '/sprites';
+  var destPath = spritesDir + '/' + fileName;
+  var script = projectRoot + '/scripts/process-spritesheet-v4.py';
+  await runShell('mkdir -p ' + shellQuote(spritesDir));
+  // Find a working python3 (homebrew or system)
+  var py = 'python3';
+  var pyCheck = await runShell('/opt/homebrew/bin/python3 -c "import numpy" 2>/dev/null && echo ok');
+  if ((pyCheck.stdout || '').trim() === 'ok') py = '/opt/homebrew/bin/python3';
+  // Run the sprite sheet processor (handles background removal, de-spill, resize)
+  var result = await runShell(
+    py + ' ' + shellQuote(script) +
+    ' ' + shellQuote(srcPath) +
+    ' -o ' + shellQuote(destPath) +
+    ' --cols 8 --rows 9 --target 128'
+  );
+  if (result.code !== 0) {
+    throw new Error('Sprite processing failed: ' + (result.stderr || ''));
+  }
+}
+
+export async function deleteCustomSprite(key) {
+  var petDataPath = await ensurePetDataPath();
+  var filePath = petDataPath + '/sprites/' + key + '.png';
+  await runShell('rm -f ' + shellQuote(filePath));
+}
+
+// --- Sprite spec prompt ---
+
+export async function readSpecPrompt() {
+  var { projectRoot } = await resolvePetDataPaths();
+  var result = await runShell('cat ' + shellQuote(projectRoot + '/SPRITE-SPEC.md'));
+  var text = (result.stdout || '');
+  // Extract the code block under "## Generation Prompt"
+  var match = text.match(/## Generation Prompt[\s\S]*?```\n([\s\S]*?)```/);
+  return match ? match[1].trim() : '';
+}
+
+// --- File picker via osascript ---
+
+export async function pickAndReadPng() {
+  var result = await runShell(
+    "osascript -e 'POSIX path of (choose file of type {\"public.png\"} with prompt \"Choose a sprite sheet PNG\")'"
+  );
+  var filePath = (result.stdout || '').trim();
+  if (!filePath) return null;
+  var fileName = filePath.split('/').pop();
+  return { fileName: fileName, filePath: filePath };
+}
+
 // --- Frontmatter parsing ---
 
 function parseFrontmatter(text) {
