@@ -29,7 +29,7 @@ export function initBehavior(pet) {
       var context = await captureScreenContext();
       if (context) {
         var time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        await appendToFile('owner-perceptions.md', '- [' + time + '] ' + context);
+        await appendToFile('owner-perceptions.md', '- [' + time + '] 📸 ' + context);
         console.log('📸 Perception:', context);
       }
       // Nudge once if screen recording is denied
@@ -310,7 +310,7 @@ export function initBehavior(pet) {
     var screenContext = await captureScreenContext();
     if (screenContext) {
       var time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      await appendToFile('owner-perceptions.md', '- [' + time + '] ' + screenContext);
+      await appendToFile('owner-perceptions.md', '- [' + time + '] 📸 ' + screenContext);
     }
 
     var timeSignals = getTimeSignals();
