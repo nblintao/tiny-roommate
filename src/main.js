@@ -74,7 +74,9 @@ loadConfig().then(function(cfg) {
         voice: s.voice,
       });
     });
-
+  }).catch(function(err) {
+    console.error('Failed to load custom sprites:', err);
+  }).then(function() {
     if (cfg.sprite && cfg.sprite !== pet.currentSprite) {
       // Only apply if the character actually exists (built-in or custom)
       if (CHARACTERS[cfg.sprite]) {
@@ -90,6 +92,8 @@ loadConfig().then(function(cfg) {
 }).then(function() {
   document.getElementById('chat-input').placeholder = 'Say something to ' + pet.petName + '...';
   hearts.updateTogether();
+}).catch(function(err) {
+  console.error('Failed to load config/sprites:', err);
 });
 
 behavior.start();
