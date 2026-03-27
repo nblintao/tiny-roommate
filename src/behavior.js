@@ -4,6 +4,7 @@ import { Command } from '@tauri-apps/plugin-shell';
 import { STATES } from './sprite.js';
 import { getTimeSignals, getIdleSeconds, captureScreenContext, buildContextString, isScreenRecordingDenied } from './signals.js';
 import { think, getActivityLog, generateDailyDigest, loadConfig, ensurePetDataPath, checkClaudeCli, isClaudeAvailable, getConfig } from './brain.js';
+import { t } from './i18n.js';
 
 var WALK_SPEED = 50;
 var SCREEN_MARGIN = 30;
@@ -35,7 +36,7 @@ export function initBehavior(pet) {
       // Nudge once if screen recording is denied
       if (!screenPermissionNudged && isScreenRecordingDenied()) {
         screenPermissionNudged = true;
-        pet.showBubble("i can't see your screen yet! enable Screen Recording in System Settings for me? 🥺", 8000, true);
+        pet.showBubble(t('msg.noScreenRecording'), 8000, true);
       }
     } catch (err) {
       console.error('📸 Capture error:', err);
@@ -286,14 +287,14 @@ export function initBehavior(pet) {
     var hasClaude = await checkClaudeCli();
 
     pet.sprite.setState('happy');
-    pet.showBubble('hey! i\'m ' + pet.petName + ' ' + pet.voice().greet, 3000);
+    pet.showBubble(t('msg.greetStartup', { petName: pet.petName, greet: pet.voice().greet }), 3000);
     await sleep(3500);
 
     if (!hasClaude) {
       pet.sprite.setState('sad');
-      pet.showBubble('i can\'t find Claude Code on this machine... i\'ll hang out but i can\'t think or see your screen without it 🥺', 8000);
+      pet.showBubble(t('msg.noClaude'), 8000);
       await sleep(8500);
-      pet.showBubble('install Claude Code (claude.ai/claude-code) and restart me to unlock my full brain!', 6000);
+      pet.showBubble(t('msg.installClaude'), 6000);
       await sleep(6500);
       returnToBase();
       // Offline mode: only fidget animations, no LLM/perception
@@ -302,7 +303,7 @@ export function initBehavior(pet) {
     }
 
     pet.sprite.setState('looking_around');
-    pet.showBubble('*looks around*...', 2000);
+    pet.showBubble(t('msg.looksAround'), 2000);
     await sleep(2500);
 
     // First LLM call with screen context
@@ -325,7 +326,7 @@ export function initBehavior(pet) {
         pet.sprite.setState(result.state, STATES[result.state].loop ? null : function() { returnToBase(); });
       }
     } else {
-      pet.showBubble('ooh nice desktop!', 4000);
+      pet.showBubble(t('msg.niceDesktop'), 4000);
     }
 
     pet.llmBusy = false;

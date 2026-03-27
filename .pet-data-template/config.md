@@ -3,6 +3,7 @@ pet_name: Mochi
 owner_name:
 sprite: tabby_cat
 born:
+language: auto
 ---
 
 # Personality

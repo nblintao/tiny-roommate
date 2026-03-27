@@ -9,6 +9,19 @@ import { initBubble } from './bubble-manager.js';
 import { initBehavior } from './behavior.js';
 import { initInteraction } from './interaction.js';
 import { initSettings } from './settings.js';
+import { register, setLocale, detectLocale, applyI18nToDOM, t } from './i18n.js';
+import en from './lang/en.js';
+import zh from './lang/zh.js';
+import ja from './lang/ja.js';
+import ko from './lang/ko.js';
+import es from './lang/es.js';
+
+// Register all language packs
+register('en', en);
+register('zh', zh);
+register('ja', ja);
+register('ko', ko);
+register('es', es);
 
 // Shared state object — passed to all modules
 var pet = {
@@ -66,6 +79,11 @@ loadConfig().then(function(cfg) {
   pet.petName = cfg.pet.name;
   pet.ownerName = cfg.owner.name;
 
+  // Initialize locale from config
+  var lang = cfg.language || 'auto';
+  var effectiveLocale = lang === 'auto' ? detectLocale() : lang;
+  setLocale(effectiveLocale);
+
   // Load custom sprites, then apply saved character
   return loadCustomSprites().then(function(customSprites) {
     customSprites.forEach(function(s) {
@@ -89,7 +107,8 @@ loadConfig().then(function(cfg) {
     if (pet._refreshSpritePicker) pet._refreshSpritePicker();
   });
 }).then(function() {
-  document.getElementById('chat-input').placeholder = 'Say something to ' + pet.petName + '...';
+  applyI18nToDOM();
+  document.getElementById('chat-input').placeholder = t('ui.chatPlaceholder', { petName: pet.petName });
   hearts.updateTogether();
 }).catch(function(err) {
   console.error('Failed to load config/sprites:', err);

@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { SpriteAnimator, getSpriteRenderOptions } from './sprite.js';
 import { saveConfigField, getConfig, importCustomSprite, deleteCustomSprite, readSpecPrompt, pickAndReadPng, loadCustomSprites } from './brain.js';
 import { CHARACTERS, getSpriteSrc, registerCharacter, removeCharacter, isCustomCharacter } from './characters.js';
+import { t, setLocale, getLocale, detectLocale, applyI18nToDOM } from './i18n.js';
 
 var SETTINGS_SIZE = { width: 560, height: 580 };
 
@@ -41,7 +42,7 @@ function buildSpritePicker(container, pet) {
       var del = document.createElement('span');
       del.className = 'sprite-delete';
       del.textContent = '\u00d7';
-      del.title = 'Remove';
+      del.title = t('ui.remove');
       del.dataset.spriteKey = key;
       canvasWrap.appendChild(del);
     }
@@ -61,7 +62,7 @@ function buildSpritePicker(container, pet) {
   addIcon.className = 'sprite-add-icon';
   addIcon.textContent = '+';
   var addLabel = document.createElement('span');
-  addLabel.textContent = 'Import';
+  addLabel.textContent = t('ui.import');
   addBtn.appendChild(addIcon);
   addBtn.appendChild(addLabel);
   container.appendChild(addBtn);
@@ -75,23 +76,24 @@ function showImportGuide(pet, onDone) {
     overlay.innerHTML =
       '<div class="import-guide-panel">' +
         '<div class="import-guide-header">' +
-          '<h3>Import Custom Character</h3>' +
+          '<h3 data-i18n="ui.importTitle">Import Custom Character</h3>' +
           '<button class="import-guide-close" id="import-guide-close">&times;</button>' +
         '</div>' +
         '<div class="import-guide-body">' +
           '<div class="import-guide-prompt">' +
-            '<div class="prompt-label">Copy this prompt for AI image generation (Gemini, ChatGPT, Midjourney, etc.):</div>' +
-            '<div class="prompt-text" id="import-prompt-text">Loading...</div>' +
-            '<button class="prompt-copy" id="import-copy-prompt">Copy</button>' +
+            '<div class="prompt-label" data-i18n="ui.importPromptLabel">Copy this prompt for AI image generation (Gemini, ChatGPT, Midjourney, etc.):</div>' +
+            '<div class="prompt-text" id="import-prompt-text" data-i18n="ui.importLoading">Loading...</div>' +
+            '<button class="prompt-copy" id="import-copy-prompt" data-i18n="ui.copy">Copy</button>' +
           '</div>' +
           '<div class="import-guide-actions">' +
-            '<button class="import-btn" id="import-select-file">Choose PNG file...</button>' +
+            '<button class="import-btn" id="import-select-file" data-i18n="ui.importChooseFile">Choose PNG file...</button>' +
           '</div>' +
         '</div>' +
       '</div>';
     document.body.appendChild(overlay);
   }
 
+  applyI18nToDOM(overlay);
   overlay.classList.add('show');
 
   // Load prompt from SPRITE-SPEC.md
@@ -99,7 +101,7 @@ function showImportGuide(pet, onDone) {
   var cachedPrompt = '';
   readSpecPrompt().then(function(prompt) {
     cachedPrompt = prompt;
-    promptEl.textContent = prompt || '(SPRITE-SPEC.md not found)';
+    promptEl.textContent = prompt || t('ui.importSpecNotFound');
   });
 
   var closeBtn = document.getElementById('import-guide-close');
@@ -122,8 +124,8 @@ function showImportGuide(pet, onDone) {
   copyBtn.onclick = function() {
     if (!cachedPrompt) return;
     navigator.clipboard.writeText(cachedPrompt).then(function() {
-      copyBtn.textContent = 'Copied!';
-      setTimeout(function() { copyBtn.textContent = 'Copy'; }, 1500);
+      copyBtn.textContent = t('ui.copied');
+      setTimeout(function() { copyBtn.textContent = t('ui.copy'); }, 1500);
     });
   };
 
@@ -138,7 +140,7 @@ function showImportGuide(pet, onDone) {
 
     pickAndReadPng().then(function(result) {
       if (!result) return;
-      errEl.textContent = 'Processing...';
+      errEl.textContent = t('ui.importProcessing');
       selectBtn.style.pointerEvents = 'none';
       selectBtn.style.opacity = '0.5';
       return doImport(result.fileName, result.filePath, pet, onDone).then(function() {
@@ -146,7 +148,7 @@ function showImportGuide(pet, onDone) {
       });
     }).catch(function(err) {
       console.error('Import failed:', err);
-      errEl.textContent = 'Processing failed — is it a valid sprite sheet?';
+      errEl.textContent = t('ui.importError');
       selectBtn.style.pointerEvents = '';
       selectBtn.style.opacity = '';
     });
@@ -242,7 +244,15 @@ export function initSettings(pet) {
     document.getElementById('setting-pet-name').value = pet.petName;
     document.getElementById('setting-owner-name').value = pet.ownerName;
     document.getElementById('setting-screen-interval-min').value = String(getConfig().screen_interval_min || 2);
+    document.getElementById('setting-language').value = getConfig().language || 'auto';
 
+    // Update interval option labels for current language
+    var intervalSelect = document.getElementById('setting-screen-interval-min');
+    Array.prototype.forEach.call(intervalSelect.options, function(opt) {
+      opt.textContent = t('ui.minutes', { n: opt.value });
+    });
+
+    applyI18nToDOM();
     refreshPicker();
 
     // Resize window to fit settings panel
@@ -282,8 +292,8 @@ export function initSettings(pet) {
     if (newPetName && newPetName !== pet.petName) {
       pet.petName = newPetName;
       saveConfigField('pet_name', pet.petName);
-      document.getElementById('chat-input').placeholder = 'Say something to ' + pet.petName + '...';
-      pet.showBubble('call me ' + pet.petName + ' now!', 3000, true);
+      document.getElementById('chat-input').placeholder = t('ui.chatPlaceholder', { petName: pet.petName });
+      pet.showBubble(t('msg.renamed', { petName: pet.petName }), 3000, true);
     }
 
     if (newOwnerName !== pet.ownerName) {
@@ -294,6 +304,15 @@ export function initSettings(pet) {
     var newInterval = Number(document.getElementById('setting-screen-interval-min').value);
     if (newInterval && newInterval !== getConfig().screen_interval_min) {
       saveConfigField('screen_interval_min', newInterval);
+    }
+
+    var newLang = document.getElementById('setting-language').value;
+    if (newLang !== (getConfig().language || 'auto')) {
+      saveConfigField('language', newLang);
+      var effectiveLocale = newLang === 'auto' ? detectLocale() : newLang;
+      setLocale(effectiveLocale);
+      applyI18nToDOM();
+      document.getElementById('chat-input').placeholder = t('ui.chatPlaceholder', { petName: pet.petName });
     }
 
     settingsOverlay.classList.remove('show');
@@ -371,7 +390,7 @@ export function initSettings(pet) {
     if (del) {
       e.stopPropagation();
       var delKey = del.dataset.spriteKey;
-      if (delKey && confirm('Remove "' + (CHARACTERS[delKey].displayName || delKey) + '"?')) {
+      if (delKey && confirm(t('ui.removeConfirm', { name: CHARACTERS[delKey].displayName || delKey }))) {
         // If currently selected, switch to tabby_cat
         if (pet.currentSprite === delKey) {
           pet.currentSprite = 'tabby_cat';
@@ -381,7 +400,7 @@ export function initSettings(pet) {
           var defaultChar = CHARACTERS.tabby_cat;
           pet.petName = defaultChar.defaultName;
           document.getElementById('setting-pet-name').value = defaultChar.defaultName;
-          document.getElementById('chat-input').placeholder = 'Say something to ' + pet.petName + '...';
+          document.getElementById('chat-input').placeholder = t('ui.chatPlaceholder', { petName: pet.petName });
           saveConfigField('pet_name', defaultChar.defaultName);
         }
         deleteCustomSprite(delKey).then(function() {
@@ -420,9 +439,9 @@ export function initSettings(pet) {
       if (nameIsDefault) {
         pet.petName = charInfo.defaultName;
         document.getElementById('setting-pet-name').value = charInfo.defaultName;
-        document.getElementById('chat-input').placeholder = 'Say something to ' + pet.petName + '...';
+        document.getElementById('chat-input').placeholder = t('ui.chatPlaceholder', { petName: pet.petName });
         saveConfigField('pet_name', charInfo.defaultName);
-        pet.showBubble('call me ' + charInfo.defaultName + '!', 2000, true);
+        pet.showBubble(t('msg.charChanged', { name: charInfo.defaultName }), 2000, true);
       }
     }
     spriteContainer.querySelectorAll('.sprite-option').forEach(function(b) {

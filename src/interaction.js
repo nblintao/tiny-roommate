@@ -3,6 +3,7 @@
 import { STATES } from './sprite.js';
 import { getTimeSignals, getIdleSeconds, buildContextString } from './signals.js';
 import { think } from './brain.js';
+import { tArray } from './i18n.js';
 
 var PET_HOLD_MS = 500;
 var SWING_DAMPING = 0.92;
@@ -224,7 +225,7 @@ export function initInteraction(pet) {
 
       pet.llmBusy = true;
       pet.sprite.setState('talk');
-      var thinkingLines = ['🤔 hmm...', '🤔 let me think...', '🤔 umm...', '💭 hmm...', '💭 ...'];
+      var thinkingLines = tArray('msg.thinking');
       pet.showBubble(thinkingLines[Math.floor(Math.random() * thinkingLines.length)], 30000);
 
       var timeSignals = getTimeSignals();

@@ -35,6 +35,7 @@ let config = {
   owner: { name: '' },
   sprite: 'tabby_cat',
   screen_interval_min: 2,
+  language: 'auto',
 };
 
 function shellQuote(value) {
@@ -220,6 +221,7 @@ export async function loadConfig() {
     if (fields.owner_name) config.owner.name = fields.owner_name;
     if (fields.sprite) config.sprite = fields.sprite;
     if (fields.screen_interval_min) config.screen_interval_min = Number(fields.screen_interval_min) || 2;
+    if (fields.language) config.language = fields.language;
   }
 
   return { ...config, pet: { ...config.pet }, owner: { ...config.owner } };
@@ -234,6 +236,7 @@ export function saveConfigField(key, value) {
   if (key === 'owner_name') config.owner.name = value;
   if (key === 'sprite') config.sprite = value;
   if (key === 'screen_interval_min') config.screen_interval_min = Number(value) || 2;
+  if (key === 'language') config.language = value;
 
   // Queue file writes so concurrent calls don't clobber each other
   configWriteQueue = configWriteQueue.then(async function() {
@@ -261,6 +264,11 @@ function buildSystemPrompt() {
   }
   if (config.owner.name) {
     prompt += ' Call your owner "' + config.owner.name + '".';
+  }
+  var langNames = { zh: 'Chinese', ja: 'Japanese', ko: 'Korean', es: 'Spanish', en: 'English' };
+  var lang = config.language || 'auto';
+  if (lang !== 'auto' && lang !== 'en' && langNames[lang]) {
+    prompt += ' Respond in ' + langNames[lang] + '.';
   }
   prompt += ' Then respond to the situation below.';
   return prompt;

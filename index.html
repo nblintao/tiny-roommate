@@ -531,36 +531,47 @@
   <span id="bubble-text"></span>
   <div id="bubble-actions">
     <div id="bubble-reactions"></div>
-    <button id="bubble-reply" title="Reply">↩</button>
+    <button id="bubble-reply" data-i18n-title="ui.reply" title="Reply">↩</button>
   </div>
   <div class="arrow" id="bubble-arrow"></div>
 </div>
 <canvas id="pet"></canvas>
 <img id="pet-hand" src="/cursor-hand.svg" />
-<input id="chat-input" type="text" placeholder="Say something to Mochi..." />
+<input id="chat-input" type="text" data-i18n-placeholder="ui.chatPlaceholder" placeholder="Say something to Mochi..." />
 <div id="context-menu">
-  <button id="menu-settings" class="menu-primary">🐾 Settings...</button>
+  <button id="menu-settings" class="menu-primary" data-i18n="ui.settingsBtn">🐾 Settings...</button>
   <div class="menu-divider"></div>
-  <button id="menu-inspect">Inspect Element <span class="menu-shortcut">⌥⌘I</span></button>
+  <button id="menu-inspect"><span data-i18n="ui.inspectElement">Inspect Element</span> <span class="menu-shortcut">⌥⌘I</span></button>
   <div class="menu-divider"></div>
-  <button id="menu-quit">Quit</button>
+  <button id="menu-quit" data-i18n="ui.quit">Quit</button>
 </div>
 <div id="settings-overlay">
   <div id="settings-panel">
     <div class="settings-header">
-      <h2>Settings</h2>
+      <h2 data-i18n="ui.settings">Settings</h2>
       <button class="settings-close" id="settings-close">&times;</button>
     </div>
     <div class="settings-section">
-      <label>Pet Name</label>
-      <input type="text" id="setting-pet-name" placeholder="Mochi" />
+      <label data-i18n="ui.petName">Pet Name</label>
+      <input type="text" id="setting-pet-name" data-i18n-placeholder="ui.petNamePlaceholder" placeholder="Mochi" />
     </div>
     <div class="settings-section">
-      <label>Call me</label>
-      <input type="text" id="setting-owner-name" placeholder="How should your pet call you?" />
+      <label data-i18n="ui.callMe">Call me</label>
+      <input type="text" id="setting-owner-name" data-i18n-placeholder="ui.ownerNamePlaceholder" placeholder="How should your pet call you?" />
     </div>
     <div class="settings-section">
-      <label>Screen Capture Interval</label>
+      <label data-i18n="ui.language">Language</label>
+      <select id="setting-language">
+        <option value="auto" data-i18n="ui.langAuto">Auto</option>
+        <option value="en">English</option>
+        <option value="zh">中文</option>
+        <option value="ja">日本語</option>
+        <option value="ko">한국어</option>
+        <option value="es">Español</option>
+      </select>
+    </div>
+    <div class="settings-section">
+      <label data-i18n="ui.screenInterval">Screen Capture Interval</label>
       <select id="setting-screen-interval-min">
         <option value="1">1 min</option>
         <option value="2" selected>2 min</option>
@@ -570,7 +581,7 @@
       </select>
     </div>
     <div class="settings-section">
-      <label>Character</label>
+      <label data-i18n="ui.character">Character</label>
       <div class="sprite-options" id="sprite-options"></div>
     </div>
   </div>

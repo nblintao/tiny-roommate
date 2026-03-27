@@ -1,6 +1,7 @@
 // Hearts / affection system
 
 import { getConfig } from './brain.js';
+import { t } from './i18n.js';
 
 export function initHearts(pet) {
   var MAX_HEARTS = 5;
@@ -26,11 +27,11 @@ export function initHearts(pet) {
     _isSick = heartsValue <= 0;
     if (_isSick && !wasSick) {
       pet.sprite.setState('sleep');
-      pet.showBubble('...i don\'t feel so good', 6000, true);
+      pet.showBubble(t('msg.sick'), 6000, true);
     }
     if (!_isSick && wasSick) {
       pet.sprite.setState('happy', function() { pet.sprite.setState('idle'); });
-      pet.showBubble('you came back! 💛', 4000, true);
+      pet.showBubble(t('msg.recover'), 4000, true);
     }
   }
 
@@ -64,12 +65,14 @@ export function initHearts(pet) {
     var diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     var diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDays >= 1) {
-      togetherEl.textContent = '🤝 ' + diffDays + ' day' + (diffDays > 1 ? 's' : '') + ' together';
+    if (diffDays > 1) {
+      togetherEl.textContent = t('status.togetherDays', { count: diffDays });
+    } else if (diffDays === 1) {
+      togetherEl.textContent = t('status.togetherDay');
     } else if (diffHours >= 1) {
-      togetherEl.textContent = '🤝 ' + diffHours + 'h together';
+      togetherEl.textContent = t('status.togetherHours', { count: diffHours });
     } else {
-      togetherEl.textContent = '🤝 just met!';
+      togetherEl.textContent = t('status.justMet');
     }
   }
 
