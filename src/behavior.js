@@ -3,11 +3,11 @@
 import { Command } from '@tauri-apps/plugin-shell';
 import { STATES } from './sprite.js';
 import { getTimeSignals, getIdleSeconds, captureScreenContext, buildContextString, isScreenRecordingDenied } from './signals.js';
-import { think, getActivityLog, generateDailyDigest, loadConfig, ensurePetDataPath, checkClaudeCli, isClaudeAvailable } from './brain.js';
+import { think, getActivityLog, generateDailyDigest, loadConfig, ensurePetDataPath, checkClaudeCli, isClaudeAvailable, getConfig } from './brain.js';
 
 var WALK_SPEED = 50;
 var SCREEN_MARGIN = 30;
-var SCREEN_CAPTURE_INTERVAL = 2 * 60 * 1000;   // perception: every 2 min
+var DEFAULT_SCREEN_CAPTURE_INTERVAL = 2 * 60 * 1000;   // perception: default 2 min
 var DECISION_INTERVAL = [2 * 60 * 1000, 3 * 60 * 1000]; // brain: every 2-3 min
 var FIDGET_INTERVAL = [12000, 30000];            // small animations between decisions
 var INTERACTION_COOLDOWN = 30000;                 // don't auto-act 30s after interaction
@@ -40,7 +40,8 @@ export function initBehavior(pet) {
     } catch (err) {
       console.error('📸 Capture error:', err);
     }
-    setTimeout(captureLoop, SCREEN_CAPTURE_INTERVAL);
+    var interval = getConfig().screen_interval_min * 60 * 1000 || DEFAULT_SCREEN_CAPTURE_INTERVAL;
+    setTimeout(captureLoop, interval);
   }
 
   async function appendToFile(relPath, line) {

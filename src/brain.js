@@ -20,6 +20,7 @@ let config = {
   pet: { name: 'Mochi', born: '' },
   owner: { name: '' },
   sprite: 'tabby_cat',
+  screen_interval_min: 2,
 };
 
 function shellQuote(value) {
@@ -204,6 +205,7 @@ export async function loadConfig() {
     if (fields.born) config.pet.born = fields.born;
     if (fields.owner_name) config.owner.name = fields.owner_name;
     if (fields.sprite) config.sprite = fields.sprite;
+    if (fields.screen_interval_min) config.screen_interval_min = Number(fields.screen_interval_min) || 2;
   }
 
   return { ...config, pet: { ...config.pet }, owner: { ...config.owner } };
@@ -217,6 +219,7 @@ export function saveConfigField(key, value) {
   if (key === 'born') config.pet.born = value;
   if (key === 'owner_name') config.owner.name = value;
   if (key === 'sprite') config.sprite = value;
+  if (key === 'screen_interval_min') config.screen_interval_min = Number(value) || 2;
 
   // Queue file writes so concurrent calls don't clobber each other
   configWriteQueue = configWriteQueue.then(async function() {

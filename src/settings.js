@@ -2,7 +2,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { SpriteAnimator, getSpriteRenderOptions } from './sprite.js';
-import { saveConfigField, importCustomSprite, deleteCustomSprite, readSpecPrompt, pickAndReadPng, loadCustomSprites } from './brain.js';
+import { saveConfigField, getConfig, importCustomSprite, deleteCustomSprite, readSpecPrompt, pickAndReadPng, loadCustomSprites } from './brain.js';
 import { CHARACTERS, getSpriteSrc, registerCharacter, removeCharacter, isCustomCharacter } from './characters.js';
 
 var SETTINGS_SIZE = { width: 560, height: 580 };
@@ -241,6 +241,7 @@ export function initSettings(pet) {
   function openSettings() {
     document.getElementById('setting-pet-name').value = pet.petName;
     document.getElementById('setting-owner-name').value = pet.ownerName;
+    document.getElementById('setting-screen-interval-min').value = String(getConfig().screen_interval_min || 2);
 
     refreshPicker();
 
@@ -288,6 +289,11 @@ export function initSettings(pet) {
     if (newOwnerName !== pet.ownerName) {
       pet.ownerName = newOwnerName;
       saveConfigField('owner_name', pet.ownerName);
+    }
+
+    var newInterval = Number(document.getElementById('setting-screen-interval-min').value);
+    if (newInterval && newInterval !== getConfig().screen_interval_min) {
+      saveConfigField('screen_interval_min', newInterval);
     }
 
     settingsOverlay.classList.remove('show');
