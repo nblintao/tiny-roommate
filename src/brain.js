@@ -2,6 +2,20 @@
 
 import { Command } from '@tauri-apps/plugin-shell';
 
+// Run a shell command and stream stdout to avoid buffer overflow on large output
+function runShellStream(script) {
+  return new Promise(function(resolve, reject) {
+    var chunks = [];
+    var child = Command.create('bash', ['-lc', script]);
+    child.on('close', function(data) {
+      resolve({ code: data.code, stdout: chunks.join('') });
+    });
+    child.on('error', reject);
+    child.stdout.on('data', function(line) { chunks.push(line); });
+    child.spawn();
+  });
+}
+
 export let PET_DATA_PATH = '';
 let petDataReady = false;
 
@@ -67,8 +81,8 @@ export async function loadCustomSprites() {
     var filePath = files[i].trim();
     if (!filePath) continue;
     var key = filePath.split('/').pop().replace(/\.png$/, '');
-    // Read as base64 for data URL
-    var b64Result = await runShell('base64 < ' + shellQuote(filePath));
+    // Use streaming read to avoid stdout buffer overflow on large PNGs
+    var b64Result = await runShellStream('base64 < ' + shellQuote(filePath));
     var b64 = (b64Result.stdout || '').replace(/\s/g, '');
     if (!b64) continue;
 

@@ -78,7 +78,6 @@ loadConfig().then(function(cfg) {
     console.error('Failed to load custom sprites:', err);
   }).then(function() {
     if (cfg.sprite && cfg.sprite !== pet.currentSprite) {
-      // Only apply if the character actually exists (built-in or custom)
       if (CHARACTERS[cfg.sprite]) {
         pet.currentSprite = cfg.sprite;
         pet.sprite.image.src = getSpriteSrc(pet.currentSprite);
